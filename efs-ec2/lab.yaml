@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS CloudFormation Template to Create EC2 and EFS Resources in us-east-1"
+
+Parameters:
+  KeyPairName:
+    Description: "The EC2 Key Pair name to allow SSH access to the instance"
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Description: "The EC2 instance type"
+    Type: String
+    Default: "t2.micro"
+  VpcId:
+    Description: "The VPC ID where the resources will be created"
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: "The Subnet ID where the EC2 instance will be launched"
+    Type: AWS::EC2::Subnet::Id
+
+Resources:
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for EC2 instance"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+
+  InternalSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group that allows traffic only within the same group"
+      VpcId: !Ref VpcId
+
+  InternalSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref InternalSecurityGroup
+      IpProtocol: tcp
+      ToPort: 65535
+      FromPort: 0
+      SourceSecurityGroupId: !Ref InternalSecurityGroup
+    DependsOn: InternalSecurityGroup
+  
+  InternalSecurityGroupEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref InternalSecurityGroup
+      IpProtocol: -1
+      FromPort: 0
+      ToPort: 65535
+      CidrIp: 0.0.0.0/0
+    DependsOn: InternalSecurityGroup
+
+  EFSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for EFS mount target"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !GetAtt EC2SecurityGroup.GroupId
+
+  EC2InstanceSource:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+        - !Ref InternalSecurityGroup
+      Tags:
+        - Key: Name
+          Value: source-instance
+
+  EC2InstanceDest:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref InternalSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y amazon-efs-utils wget
+          mkdir /mnt/efs
+          mount -t efs -o tls ${EFSFileSystem}:/ /mnt/efs
+          cd /mnt/efs
+          wget google.com
+      Tags:
+        - Key: Name
+          Value: dest-instance
+
+  EFSFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: true
+      FileSystemTags:
+        - Key: Name
+          Value: "EFSFileSystem"
+
+  EFSFileSystemMountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Ref SubnetId
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+
+Outputs:
+  FileSystemId:
+    Description: "The ID of the EFS file system"
+    Value: !Ref EFSFileSystem
+
+
