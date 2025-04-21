@@ -1,0 +1,220 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS CloudFormation Template for VPC Peering Lab"
+
+Parameters:
+  KeyPairName:
+    Description: "The EC2 Key Pair to allow SSH access to the instances"
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  # First VPC and its components
+  VPC1:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: VPC-A
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC1
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: Subnet-A
+
+  InternetGateway1:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: IGW-A
+
+  AttachGateway1:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC1
+      InternetGatewayId: !Ref InternetGateway1
+
+  RouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC1
+      Tags:
+        - Key: Name
+          Value: RT-A
+
+  Route1:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway1
+    Properties:
+      RouteTableId: !Ref RouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway1
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref RouteTable1
+
+  # Second VPC and its components
+  VPC2:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.16.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: VPC-B
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC2
+      CidrBlock: 172.16.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: Subnet-B
+
+  InternetGateway2:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: IGW-B
+
+  AttachGateway2:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC2
+      InternetGatewayId: !Ref InternetGateway2
+
+  RouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC2
+      Tags:
+        - Key: Name
+          Value: RT-B
+
+  Route2:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway2
+    Properties:
+      RouteTableId: !Ref RouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway2
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref RouteTable2
+
+  # Security Groups
+  SecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for VPC-A instance
+      VpcId: !Ref VPC1
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 172.16.0.0/16
+
+  SecurityGroup2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for VPC-B instance
+      VpcId: !Ref VPC2
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 10.0.0.0/16
+
+  # EC2 Instances
+  EC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref Subnet1
+      SecurityGroupIds:
+        - !Ref SecurityGroup1
+      Tags:
+        - Key: Name
+          Value: Instance-A
+
+  EC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref Subnet2
+      SecurityGroupIds:
+        - !Ref SecurityGroup2
+      Tags:
+        - Key: Name
+          Value: Instance-B
+
+  # VPC Peering Connection
+  VPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VPC1
+      PeerVpcId: !Ref VPC2
+      Tags:
+        - Key: Name
+          Value: VPC-A-to-VPC-B-Peering
+
+  # Routes for VPC Peering
+  PeeringRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable1
+      DestinationCidrBlock: 172.16.0.0/16
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+  PeeringRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable2
+      DestinationCidrBlock: 10.0.0.0/16
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+Outputs:
+  Instance1PublicIP:
+    Description: Public IP of Instance in VPC-A
+    Value: !GetAtt EC2Instance1.PublicIp
+
+  Instance2PublicIP:
+    Description: Public IP of Instance in VPC-B
+    Value: !GetAtt EC2Instance2.PublicIp
+
+  Instance1PrivateIP:
+    Description: Private IP of Instance in VPC-A
+    Value: !GetAtt EC2Instance1.PrivateIp
+
+  Instance2PrivateIP:
+    Description: Private IP of Instance in VPC-B
+    Value: !GetAtt EC2Instance2.PrivateIp

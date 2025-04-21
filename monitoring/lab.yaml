@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS CloudFormation Template for Basic Server Monitoring Lab"
+
+Parameters:
+  KeyPairName:
+    Description: "The EC2 Key Pair name to allow SSH access to the instance"
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Description: "The EC2 instance type"
+    Type: String
+    Default: "t2.micro"
+  VpcId:
+    Description: "The VPC ID where the resources will be created"
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: "The Subnet ID where the EC2 instance will be launched"
+    Type: AWS::EC2::Subnet::Id
+
+Resources:
+  MonitoringSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for monitoring instance"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  MonitoringInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref MonitoringSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y htop iotop sysstat stress-ng
+          echo "*/5 * * * * /usr/bin/mpstat > /home/ec2-user/cpu_stats.log" | crontab -
+          stress-ng --cpu 1 --timeout 300 &
+      Tags:
+        - Key: Name
+          Value: monitoring-instance
+
+Outputs:
+  InstanceId:
+    Description: "The ID of the EC2 instance"
+    Value: !Ref MonitoringInstance
+  PublicDNS:
+    Description: "Public DNS of the EC2 instance"
+    Value: !GetAtt MonitoringInstance.PublicDnsName

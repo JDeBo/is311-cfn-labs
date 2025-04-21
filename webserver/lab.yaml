@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS CloudFormation Template for Basic Web Server Lab"
+
+Parameters:
+  KeyPairName:
+    Description: "The EC2 Key Pair name to allow SSH access to the instance"
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Description: "The EC2 instance type"
+    Type: String
+    Default: "t2.micro"
+  VpcId:
+    Description: "The VPC ID where the resources will be created"
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: "The Subnet ID where the EC2 instance will be launched"
+    Type: AWS::EC2::Subnet::Id
+
+Resources:
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for web server"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html><body><h1>Welcome to the Web Server Lab!</h1><p>This is a basic web server setup.</p></body></html>" > /var/www/html/index.html
+          echo "ErrorLog /var/www/html/error.log" >> /etc/httpd/conf/httpd.conf
+          echo "CustomLog /var/www/html/access.log combined" >> /etc/httpd/conf/httpd.conf
+          systemctl restart httpd
+      Tags:
+        - Key: Name
+          Value: webserver-instance
+
+Outputs:
+  InstanceId:
+    Description: "The ID of the EC2 instance"
+    Value: !Ref WebServerInstance
+  PublicDNS:
+    Description: "Public DNS of the EC2 instance"
+    Value: !GetAtt WebServerInstance.PublicDnsName

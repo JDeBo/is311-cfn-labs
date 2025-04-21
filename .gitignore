@@ -1,0 +1,60 @@
+# Terraform specific ignores
+.terraform/
+# *.tfstate # yeah I know it's bad, but I don't wanna pay for HCP backend
+# *.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+
+# Exclude CLI configuration files
+.terraform.lock.hcl
+
+# Local .terraform directories
+**/.terraform/*
+
+# CloudFormation temporary files
+*.template-temp
+*.template.yaml.bak
+*.template.json.bak
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.envrc
+*.pem
+credentials.json
+secrets.tfvars
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+.*.sw?
+
+# Python virtual environment (if using CDK or other Python tools)
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# CDK (if using CDK with CloudFormation)
+cdk.out/
+cdk.context.json
+.cdk.staging/

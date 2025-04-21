@@ -102,6 +102,9 @@ Resources:
           mount -t efs -o tls ${EFSFileSystem}:/ /mnt/efs
           cd /mnt/efs
           wget google.com
+          sed -i -E 's/.*PasswordAuthentication.*no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+          systemctl restart ssh
+          printf 'is311rocks\nis311rocks\n' | passwd ec2-user
       Tags:
         - Key: Name
           Value: dest-instance
