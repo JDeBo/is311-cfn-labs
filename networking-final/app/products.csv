@@ -1,0 +1,21 @@
+product_id,product_name,category,price,description
+1,Smartphone X,Electronics,699.99,Latest smartphone with high-resolution camera and fast processor
+2,Laptop Pro,Electronics,1299.99,Professional laptop with 16GB RAM and 512GB SSD
+3,Wireless Earbuds,Electronics,129.99,Noise-cancelling wireless earbuds with long battery life
+4,Smart Watch,Electronics,249.99,Fitness tracker and smartwatch with heart rate monitor
+5,Bluetooth Speaker,Electronics,79.99,Portable waterproof Bluetooth speaker with 20-hour battery
+6,T-shirt Basic,Clothing,19.99,Comfortable cotton t-shirt available in multiple colors
+7,Jeans Classic,Clothing,49.99,Classic fit jeans made from durable denim
+8,Hoodie Zip,Clothing,39.99,Warm hoodie with front zipper and kangaroo pocket
+9,Running Shoes,Clothing,89.99,Lightweight running shoes with cushioned sole
+10,Winter Jacket,Clothing,129.99,Waterproof winter jacket with thermal lining
+11,Coffee Table,Home,199.99,Modern coffee table with storage compartment
+12,Bed Frame,Home,299.99,Sturdy bed frame with wooden slats
+13,Desk Lamp,Home,34.99,Adjustable desk lamp with LED bulb
+14,Sofa Set,Home,899.99,3-piece sofa set with comfortable cushions
+15,Dining Table,Home,449.99,Extendable dining table for 6-8 people
+16,Mystery Novel,Books,14.99,Bestselling mystery novel by renowned author
+17,Cookbook,Books,24.99,Collection of easy and delicious recipes
+18,Science Fiction,Books,12.99,Award-winning science fiction novel set in the future
+19,History Book,Books,19.99,Comprehensive history of the 20th century
+20,Self-Help Guide,Books,16.99,Guide to personal development and success
