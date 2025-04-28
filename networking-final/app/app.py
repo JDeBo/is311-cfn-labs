@@ -6,9 +6,9 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Database configuration
-DB_HOST = os.environ.get('DB_HOST', 'mysql.local')  # Using private DNS name
-DB_USER = os.environ.get('DB_USER', 'flask_user')
-DB_PASSWORD = os.environ.get('DB_PASSWORD', 'password')
+DB_HOST = os.environ.get('DB_HOST', 'localhost')  # Using private DNS name
+DB_USER = os.environ.get('DB_USER', 'root')
+DB_PASSWORD = os.environ.get('DB_PASSWORD', 'is311-pwd')
 DB_NAME = os.environ.get('DB_NAME', 'product_catalog')
 
 def get_db_connection():

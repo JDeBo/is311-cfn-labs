@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Networking Lab Infrastructure for Student Accounts"
+
+Parameters:
+  StudentFirstName:
+    Type: String
+    Description: "Student's first name for resource tagging"
+  
+  StudentLastName:
+    Type: String
+    Description: "Student's last name for resource tagging"
+
+Resources:
+  # VPC Configuration
+  LabVPC: 
+    Type: AWSSamples::net::vpcwizard::MODULE
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      NumberOfAZs: 1
+      PrivateSubnetOutboundConnectivity: True
+      VpcFlowLogDestination: None
+      EnablePrivateSessionManager: False
+
+  # Security Group
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for networking lab web app
+      VpcId: !Ref NetworkingLabVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StudentFirstName}-${StudentLastName}-web-sg
+
+  # Security Group
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for networking lab database
+      VpcId: !Ref NetworkingLabVPC
+      SecurityGroupIngress:
+      Tags:
+        - Key: Name
+          Value: !Sub ${StudentFirstName}-${StudentLastName}-db-sg
+
+  # Web Instance
+  WebInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      SubnetId: !Ref LabVPCPublicSubnetA
+      SecurityGroupIds:
+        - !Ref LabSecurityGroup
+
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          dnf install git
+          git clone https://github.com/JDeBo/is311-cfn-labs.git
+          systemctl enable httpd
+          echo "Hello from your EC2 instance!" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: !Sub ${StudentFirstName}-${StudentLastName}-web-instance
+        - Key: Student
+          Value: !Sub ${StudentFirstName}-${StudentLastName}
+
+  # DB Instance
+  DBInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      SubnetId: !Ref LabVPCPrivateSubnetA
+      SecurityGroupIds:
+        - !Ref LabSecurityGroup
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${StudentFirstName}-${StudentLastName}-db-instance
+        - Key: Student
+          Value: !Sub ${StudentFirstName}-${StudentLastName}
+
+Outputs:
+  VPCId:
+    Description: "VPC ID"
+    Value: !Ref LabVPCVPC
+
+  WebInstanceId:
+    Description: "EC2 Instance ID"
+    Value: !Ref WebInstance
+
+  DBSecurityGroupId:
+    Description: "DB Security Group ID"
+    Value: !Ref DBSecurityGroup
